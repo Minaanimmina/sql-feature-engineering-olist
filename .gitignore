@@ -1,0 +1,25 @@
+# Données brutes (CSV, Parquet, etc.)
+data/
+
+# Environnement virtuel Python
+.venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# DuckDB
+*.duckdb
+*.duckdb-shm
+*.duckdb-wal
