@@ -1,0 +1,92 @@
+erDiagram
+  customers {
+    VARCHAR customer_id PK
+    VARCHAR customer_unique_id
+    VARCHAR customer_zip_code_prefix
+    VARCHAR customer_city
+    VARCHAR customer_state
+  }
+  orders {
+    VARCHAR order_id PK
+    VARCHAR customer_id FK
+    VARCHAR order_status
+    TIMESTAMP order_purchase_timestamp
+    TIMESTAMP order_approved_at
+    TIMESTAMP order_delivered_carrier_date
+    TIMESTAMP order_delivered_customer_date
+    TIMESTAMP order_estimated_delivery_date
+  }
+  order_items {
+    VARCHAR order_id FK
+    INTEGER order_item_id
+    VARCHAR product_id FK
+    VARCHAR seller_id FK
+    TIMESTAMP shipping_limit_date
+    NUMERIC price
+    NUMERIC freight_value
+  }
+  order_payments {
+    VARCHAR order_id FK
+    INTEGER payment_sequential
+    VARCHAR payment_type
+    INTEGER payment_installments
+    NUMERIC payment_value
+  }
+  order_reviews {
+    VARCHAR review_id PK
+    VARCHAR order_id FK
+    INTEGER review_score
+    VARCHAR review_comment_title
+    VARCHAR review_comment_message
+    TIMESTAMP review_creation_date
+    TIMESTAMP review_answer_timestamp
+  }
+  products {
+    VARCHAR product_id PK
+    VARCHAR product_category_name
+    INTEGER product_name_lenght
+    INTEGER product_description_lenght
+    INTEGER product_photos_qty
+    NUMERIC product_weight_g
+    NUMERIC product_length_cm
+    NUMERIC product_height_cm
+    NUMERIC product_width_cm
+  }
+  sellers {
+    VARCHAR seller_id PK
+    VARCHAR seller_zip_code_prefix
+    VARCHAR seller_city
+    VARCHAR seller_state
+  }
+  product_category_name_translation {
+    VARCHAR product_category_name PK
+    VARCHAR product_category_name_english
+  }
+  v_customer_features {
+    VARCHAR customer_unique_id
+    INTEGER nb_commandes
+    INTEGER jours_depuis_derniere_commande
+    NUMERIC valeur_totale
+    NUMERIC panier_moyen
+    NUMERIC panier_moyen_par_commande
+    NUMERIC score_moyen_reviews
+    INTEGER nb_reviews
+    INTEGER nb_mauvaises_reviews
+    NUMERIC pct_mauvaises_reviews
+    INTEGER nb_categories_distinctes
+    NUMERIC delai_moyen_inter_commandes
+    NUMERIC tendance_panier
+    INTEGER rang_par_valeur
+    VARCHAR mode_paiement_prefere
+    NUMERIC nb_moyen_versements
+    INTEGER est_churne
+    VARCHAR segment_client
+  }
+  customers ||--o{ orders : "1 client, N commandes"
+  orders ||--|{ order_items : "1 commande, N articles"
+  orders ||--o{ order_payments : "1 commande, N paiements"
+  orders ||--o{ order_reviews : "1 commande, 0-N reviews"
+  products ||--o{ order_items : "1 produit, N lignes"
+  sellers ||--o{ order_items : "1 vendeur, N lignes"
+  products }o--|| product_category_name_translation : "N produits, 1 cat."
+  customers ||--o{ v_customer_features : "agrege par unique_id"
