@@ -1,4 +1,4 @@
--- 00-exploration-base.sql
+-- 03-exploration-base.sql
 -- Exploration de la base créée après conception du schéma DDL
 
 -- ============================================================
