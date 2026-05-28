@@ -1,5 +1,8 @@
+-- 00-exploration-base.sql
+-- Exploration de la base créée après conception du schéma DDL
+
 -- ============================================================
--- 5. STATUTS DES COMMANDES : distribution
+-- 1. STATUTS DES COMMANDES : distribution
 -- ============================================================
 
 SELECT
@@ -11,7 +14,7 @@ GROUP BY order_status
 ORDER BY nb_commandes DESC;
 
 -- ============================================================
--- 6. INCOHÉRENCES : commandes "delivered" sans date de livraison
+-- 2. INCOHÉRENCES : commandes "delivered" sans date de livraison
 -- ============================================================
 
 SELECT COUNT(*) AS nb_incoherences
@@ -20,7 +23,7 @@ WHERE order_status = 'delivered'
   AND order_delivered_customer_date IS NULL;
 
 -- ============================================================
--- 7. COMMANDES SANS ITEMS
+-- 3. COMMANDES SANS ITEMS
 -- ============================================================
 
 SELECT COUNT(*) AS commandes_sans_items
@@ -29,7 +32,7 @@ LEFT JOIN order_items oi ON o.order_id = oi.order_id
 WHERE oi.order_id IS NULL;
 
 -- ============================================================
--- 8. REVIEWS SANS COMMANDE CORRESPONDANTE
+-- 4. REVIEWS SANS COMMANDE CORRESPONDANTE
 -- ============================================================
 
 SELECT COUNT(*) AS reviews_orphelines
@@ -38,7 +41,7 @@ LEFT JOIN orders o ON r.order_id = o.order_id
 WHERE o.order_id IS NULL;
 
 -- ============================================================
--- 9. FAUTES DE FRAPPE DANS LES VILLES : doublons proches
+-- 5. FAUTES DE FRAPPE DANS LES VILLES : doublons proches
 -- ============================================================
 
 SELECT
@@ -49,7 +52,6 @@ GROUP BY customer_city
 ORDER BY nb_clients DESC
 LIMIT 20;
 
--- Variantes suspectes : villes avec tirets, accents, espaces
 SELECT DISTINCT customer_city
 FROM customers
 WHERE customer_city LIKE '%sao paulo%'
@@ -58,7 +60,7 @@ WHERE customer_city LIKE '%sao paulo%'
 ORDER BY customer_city;
 
 -- ============================================================
--- 10. DISTRIBUTION DES SCORES DE REVIEWS
+-- 6. DISTRIBUTION DES SCORES DE REVIEWS
 -- ============================================================
 
 SELECT
@@ -69,7 +71,6 @@ FROM order_reviews
 GROUP BY review_score
 ORDER BY review_score;
 
--- Proportion de mauvaises reviews (score <= 2)
 SELECT
     COUNT(*) FILTER (WHERE review_score <= 2) AS mauvaises_reviews,
     COUNT(*) AS total_reviews,
