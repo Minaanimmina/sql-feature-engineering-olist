@@ -278,7 +278,7 @@ total_clients = len(df)
 avg_basket    = df["panier_moyen_par_commande"].mean()
 pct_bad_rev   = df["nb_mauvaises_reviews"].sum() / df["nb_reviews"].sum() * 100
 
-# Taux de churn réel issu de est_churne (définition SQL 90 jours, fixe)
+# Taux de churn réel issu de est_churne (définition SQL 365 jours, fixe)
 pct_churne_reel = df["est_churne"].mean() * 100
 nb_churne_reel  = df["est_churne"].sum()
 
@@ -324,23 +324,23 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     seuil_recence = st.slider("Seuil récence (jours)", 0, 700, 365)
-    seuil_score   = st.slider("Score review max", 1.0, 5.0, 3.0, 0.5)
+    SEUIL_SCORE   = 2  # Aligné sur la définition SQL : review_score <= 2
 
     st.markdown(f"""
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:0.75rem">
         <div style="display:flex;align-items:center;justify-content:space-between;
                     background:#EFF6FF;border-radius:8px;padding:7px 10px;
                     border:1px solid #BFDBFE">
-            <span style="font-size:11px;color:#1D4ED8;font-weight:500">Récence max</span>
+            <span style="font-size:11px;color:#1D4ED8;font-weight:500">Inactivité min.</span>
             <span style="font-size:12px;font-weight:700;color:#1D4ED8;
                          font-family:'DM Mono',monospace">{seuil_recence}j</span>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;
                     background:#FEF9C3;border-radius:8px;padding:7px 10px;
                     border:1px solid #FDE68A">
-            <span style="font-size:11px;color:#A16207;font-weight:500">Score max</span>
+            <span style="font-size:11px;color:#A16207;font-weight:500">Score ≤ 2</span>
             <span style="font-size:12px;font-weight:700;color:#A16207;
-                         font-family:'DM Mono',monospace">{seuil_score:.1f} / 5</span>
+                         font-family:'DM Mono',monospace">fixe · définition SQL</span>
         </div>
     </div>
     <hr class="sidebar-divider"/>
@@ -348,7 +348,7 @@ with st.sidebar:
 
     df_risk = df[
         (df["jours_depuis_derniere_commande"] > seuil_recence) &
-        (df["score_moyen_reviews"] < seuil_score)
+        (df["score_moyen_reviews"] <= SEUIL_SCORE)
     ]
     pct_risk      = len(df_risk) / len(df) * 100
     badge_color   = "#FEE2E2" if pct_risk > 15 else "#FEF9C3"
@@ -384,7 +384,7 @@ with st.sidebar:
                 border:1px solid #FECACA;margin-bottom:0.5rem">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;
                     letter-spacing:0.1em;color:#EF4444;margin-bottom:0.5rem">
-            Churn SQL (90 jours)
+            Churn SQL (365 jours)
         </div>
         <div style="font-size:32px;font-weight:700;color:#B91C1C;
                     font-family:'DM Mono',monospace;line-height:1">{pct_churne_reel:.1f}%</div>
@@ -484,7 +484,7 @@ with c4:
         <div class="kpi-label">Clients à risque (filtres)</div>
         <div class="kpi-value">{pct_risk:.1f}%</div>
         <span class="kpi-badge {'negative' if pct_risk > 15 else 'warning'}">
-            récence &gt; {seuil_recence}j · score &lt; {seuil_score}</span>
+            récence &gt; {seuil_recence}j · score ≤ 2</span>
         <div class="kpi-sub">{len(df_risk):,} clients identifiés</div>
     </div>
     """, unsafe_allow_html=True)
@@ -496,7 +496,7 @@ with c5:
     <div class="kpi-card danger">
         <div style="font-size:11px;font-weight:600;color:#EF4444;
                     text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">
-            Taux de churn (SQL 90j)
+            Taux de churn (SQL 365j)
         </div>
         <div style="font-size:26px;font-weight:700;color:#B91C1C;
                     font-family:'DM Mono',monospace;line-height:1.15;margin-bottom:0.4rem">
@@ -809,14 +809,14 @@ with col_table:
     <div class="chart-card">
     <div class="section-header">
         <p class="section-title">Clients à risque de churn</p>
-        <p class="section-sub">Récence &gt; {seuil_recence}j · Score &lt; {seuil_score} · Triés par valeur totale</p>
+        <p class="section-sub">Récence &gt; {seuil_recence}j · Score ≤ 2 · Triés par valeur totale</p>
     </div>
     """, unsafe_allow_html=True)
 
     def risk_level(row):
-        if row["jours_depuis_derniere_commande"] > 400 and row["score_moyen_reviews"] < 2:
+        if row["jours_depuis_derniere_commande"] > 365 and row["score_moyen_reviews"] <= 2:
             return "🔴 Élevé"
-        elif row["jours_depuis_derniere_commande"] > 300 or row["score_moyen_reviews"] < 2:
+        elif row["jours_depuis_derniere_commande"] > 270 or row["score_moyen_reviews"] <= 2:
             return "🟡 Moyen"
         return "🟢 Faible"
 
