@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature Engineering SQL — Olist Churn</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --blue: #2563EB;
+      --blue-light: #DBEAFE;
+      --blue-dark: #1E3A8A;
+      --red: #EF4444;
+      --green: #10B981;
+      --yellow: #F59E0B;
+      --gray-50: #F8FAFC;
+      --gray-100: #F1F5F9;
+      --gray-200: #E2E8F0;
+      --gray-400: #94A3B8;
+      --gray-600: #475569;
+      --gray-900: #0F172A;
+      --white: #FFFFFF;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--gray-900);
+      color: var(--white);
+      height: 100vh;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    /* Custom cursor */
+    .cursor {
+      position: fixed;
+      width: 8px;
+      height: 8px;
+      background: var(--blue);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transition: transform 0.1s;
+    }
+
+    /* Slide container */
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 4rem 5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      transform: translateY(20px);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
+    }
+
+    .slide.exit {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+
+    /* Progress bar */
+    .progress {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--blue);
+      transition: width 0.4s ease;
+      z-index: 100;
+    }
+
+    /* Slide counter */
+    .counter {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--gray-400);
+      z-index: 100;
+    }
+
+    /* Navigation hint */
+    .nav-hint {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--gray-600);
+      z-index: 100;
+      display: flex;
+      gap: 1rem;
+    }
+
+    /* Typography */
+    .label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--blue);
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.8rem, 3vw, 2.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+    }
+
+    h3 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p,
+    li {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #CBD5E1;
+      font-weight: 300;
+    }
+
+    /* Cards */
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+
+    .card-blue {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    .card-red {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .card-green {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .card-yellow {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
+    /* Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      background: rgba(37, 99, 235, 0.2);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      color: #93C5FD;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    /* Accent line */
+    .accent-line {
+      width: 48px;
+      height: 4px;
+      background: var(--blue);
+      border-radius: 2px;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Pipeline steps */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .step {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: #94A3B8;
+      white-space: nowrap;
+    }
+
+    .step.highlight {
+      background: rgba(37, 99, 235, 0.2);
+      border-color: rgba(37, 99, 235, 0.5);
+      color: #93C5FD;
+    }
+
+    .arrow {
+      color: var(--gray-600);
+      font-size: 16px;
+    }
+
+    /* Code block */
+    .code {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      line-height: 1.8;
+      color: #CBD5E1;
+      overflow-x: auto;
+    }
+
+    .code .kw {
+      color: #93C5FD;
+    }
+
+    .code .fn {
+      color: #6EE7B7;
+    }
+
+    .code .cm {
+      color: #64748B;
+    }
+
+    .code .hl {
+      color: #FCD34D;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    th {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gray-400);
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    td {
+      padding: 0.65rem 0.8rem;
+      color: #CBD5E1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Stat big */
+    .stat-big {
+      font-family: 'DM Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 500;
+      color: var(--white);
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Segment pills */
+    .seg {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+    }
+
+    .seg-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .seg-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .seg-desc {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+    }
+
+    /* Check list */
+    .checklist {
+      list-style: none;
+    }
+
+    .checklist li {
+      padding: 0.4rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      color: #CBD5E1;
+      font-size: 0.9rem;
+    }
+
+    .checklist li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    /* Background decoration */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slide>* {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Glow */
+    .glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-1 {
+      top: -200px;
+      left: -200px;
+    }
+
+    .glow-2 {
+      bottom: -200px;
+      right: -200px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+      margin: 1.25rem 0;
+    }
+
+    /* Number highlight */
+    .num {
+      font-family: 'DM Mono', monospace;
+      color: var(--white);
+      font-weight: 500;
+    }
+
+    .text-blue {
+      color: #93C5FD;
+    }
+
+    .text-green {
+      color: #6EE7B7;
+    }
+
+    .text-yellow {
+      color: #FCD34D;
+    }
+
+    .text-red {
+      color: #FCA5A5;
+    }
+
+    .text-muted {
+      color: var(--gray-400);
+    }
+
+    .text-sm {
+      font-size: 0.8rem;
+    }
+
+    .mt-1 {
+      margin-top: 0.5rem;
+    }
+
+    .mt-2 {
+      margin-top: 1rem;
+    }
+
+    .mt-3 {
+      margin-top: 1.5rem;
+    }
+
+    .mb-1 {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="cursor" id="cursor"></div>
+  <div class="bg-grid"></div>
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+  <div class="progress" id="progress"></div>
+  <div class="counter" id="counter">1 / 8</div>
+  <div class="nav-hint">
+    <span>← → naviguer</span>
+    <span>espace avancer</span>
+  </div>
+
+  <div class="deck" id="deck">
+
+    <!-- SLIDE 1 — Titre -->
+    <div class="slide active" id="s1">
+      <div class="label">Brief SQL Avancé — Simplon Lyon</div>
+      <h1>Feature Engineering SQL<br><span class="text-blue">Prédiction de Churn</span><br>Client Olist</h1>
+      <div class="mt-3" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:2rem">
+        <span class="badge">DuckDB 1.5.3</span>
+        <span class="badge">Python 3.12</span>
+        <span class="badge">Streamlit 1.57</span>
+      </div>
+      <div style="position:absolute;right:5rem;bottom:4rem;text-align:right">
+        <div class="stat-big" style="font-size:4rem;opacity:0.07">94 990</div>
+        <div class="stat-label" style="opacity:0.15">clients analysés</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 2 — Contexte -->
+    <div class="slide" id="s2">
+      <div class="label">Contexte</div>
+      <h2>Le projet</h2>
+      <div class="grid-2" style="align-items:start">
+        <div>
+          <p>Olist est une marketplace brésilienne connectant petits commerçants et clients finaux. Le dataset couvre
+            <span class="num">~100 000 commandes</span> entre 2016 et 2018.</p>
+          <div class="divider"></div>
+          <div class="card card-blue mt-2">
+            <h3 style="color:#93C5FD;margin-bottom:0.5rem">Qu'est-ce que le churn ?</h3>
+            <p style="font-size:0.88rem">Le churn désigne la perte de clients. Un client churne quand il cesse d'acheter
+              et ne revient pas.</p>
+          </div>
+          <div class="mt-2"
+            style="background:rgba(255,255,255,0.03);border-radius:10px;padding:1rem;border:1px solid rgba(255,255,255,0.06)">
+            <p style="font-size:0.85rem;font-style:italic;color:#93C5FD">"Quels clients vont churner dans les 90
+              prochains jours, et quels signaux comportementaux les distinguent des clients fidèles ?"</p>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:1rem;align-content:start">
+          <div class="card" style="text-align:center">
+            <div class="stat-big">99 441</div>
+            <div class="stat-label">commandes</div>
+          </div>
+          <div class="card" style="text-align:center">
+            <div class="stat-big">94 990</div>
+            <div class="stat-label">clients uniques</div>
+          </div>
+          <div class="card" style="text-align:center">
+            <div class="stat-big">8</div>
+            <div class="stat-label">fichiers CSV</div>
+          </div>
+          <div class="card" style="text-align:center">
+            <div class="stat-big">2016 → 2018</div>
+            <div class="stat-label">période</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3 — Architecture -->
+    <div class="slide" id="s3">
+      <div class="label">Architecture</div>
+      <h2>Pipeline en 8 étapes</h2>
+      <div class="pipeline mb-1">
+        <div class="step">CSV × 8</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">00 Exploration CSV</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">01 Schéma DDL</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">02 Import</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">03 Exploration base</div>
+        <div class="arrow">→</div>
+      </div>
+      <div class="pipeline mt-1">
+        <div class="step highlight" style="margin-left: 35px;">04 Nettoyage</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">05 Features</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">06 Vue finale</div>
+        <div class="arrow">→</div>
+        <div class="step highlight">07 Optimisation</div>
+        <div class="arrow">→</div>
+        <div class="step" style="background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.4);color:#6EE7B7">
+          Dashboard Streamlit</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4 — Features -->
+    <div class="slide" id="s4">
+      <div class="label">Feature Engineering</div>
+      <h2>18 features par client</h2>
+      <div class="grid-3" style="gap:1rem">
+        <div class="card">
+          <h3 class="text-blue">Récence</h3>
+          <p class="text-sm" style="color:#94A3B8">Depuis quand n'a-t-il pas commandé ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">jours_depuis_derniere_commande</code></p>
+        </div>
+        <div class="card">
+          <h3 class="text-blue">Fréquence</h3>
+          <p class="text-sm" style="color:#94A3B8">Combien de fois a-t-il commandé ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">nb_commandes</code></p>
+        </div>
+        <div class="card">
+          <h3 class="text-blue">Montant</h3>
+          <p class="text-sm" style="color:#94A3B8">Combien a-t-il dépensé ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">valeur_totale · panier_moyen</code></p>
+        </div>
+        <div class="card">
+          <h3 class="text-yellow">Satisfaction</h3>
+          <p class="text-sm" style="color:#94A3B8">Ses avis étaient-ils bons ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">score_moyen_reviews · pct_mauvaises_reviews</code></p>
+        </div>
+        <div class="card">
+          <h3 class="text-yellow">Tendance</h3>
+          <p class="text-sm" style="color:#94A3B8">Ses achats augmentent-ils ou baissent ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">tendance_panier · delai_moyen_inter_commandes</code></p>
+        </div>
+        <div class="card">
+          <h3 class="text-green">Diversité</h3>
+          <p class="text-sm" style="color:#94A3B8">Combien de catégories différentes ?</p>
+          <p class="text-sm mt-1"><code style="font-family:'DM Mono',monospace;font-size:11px">nb_categories_distinctes</code></p>
+        </div>
+      </div>
+      <div class="mt-2 grid-2" style="gap:1rem">
+        <div class="card card-red">
+          <h3 class="text-red">Label churn</h3>
+          <p class="text-sm"><code style="font-family:'DM Mono',monospace">est_churne</code> — binaire 0/1, variable cible ML</p>
+        </div>
+        <div class="card" style="background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.25)">
+          <h3 style="color:#A5B4FC">Segmentation</h3>
+          <p class="text-sm"><code style="font-family:'DM Mono',monospace">segment_client</code> — nouveau / actif / à_risque / churné</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5 — CTE -->
+    <div class="slide" id="s5">
+      <div class="label">SQL Avancé</div>
+      <h2>Les CTEs — Common Table Expressions</h2>
+      <div class="grid-2" style="align-items:start;gap:2rem">
+
+        <!-- GAUCHE : les deux blocs de code -->
+        <div style="display:flex;flex-direction:column;gap:1rem">
+
+          <div class="code" style="font-size:11px">
+            <span class="cm">-- Sous-requête</span><br>
+            <span class="kw">SELECT</span> * <span class="kw">FROM</span> (<br>
+            &nbsp;&nbsp;<span class="kw">SELECT</span> customer_unique_id, <span class="fn">COUNT</span>(*) <span class="kw">AS</span> nb_commandes<br>
+            &nbsp;&nbsp;<span class="kw">FROM</span> orders <span class="kw">GROUP BY</span> customer_unique_id<br>
+            ) sub <span class="kw">WHERE</span> sub.nb_commandes &gt; <span class="hl">3</span>;
+          </div>
+
+          <div class="code" style="font-size:11px">
+            <span class="cm">-- CTE</span><br>
+            <span class="kw">WITH</span> commandes <span class="kw">AS</span> (<br>
+            &nbsp;&nbsp;<span class="kw">SELECT</span> customer_unique_id, <span class="fn">COUNT</span>(*) <span class="kw">AS</span> nb_commandes<br>
+            &nbsp;&nbsp;<span class="kw">FROM</span> orders <span class="kw">GROUP BY</span> customer_unique_id<br>
+            )<br>
+            <span class="kw">SELECT</span> * <span class="kw">FROM</span> commandes<br>
+            <span class="kw">WHERE</span> nb_commandes &gt; <span class="hl">3</span>;
+          </div>
+
+        </div>
+
+        <!-- DROITE : explication + pourquoi -->
+        <div>
+          <div class="card card-blue" style="padding:0.9rem;margin-bottom:1rem">
+            <p class="text-sm"><span class="text-blue" style="font-weight:500">C'est quoi ?</span> Une CTE est une sous-requête nommée. On la calcule une fois, on l'utilise ensuite comme une table normale.</p>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--blue);margin-bottom:0.75rem">Pourquoi ?</div>
+          <div class="card" style="margin-bottom:0.6rem;padding:0.8rem">
+            <p class="text-sm"><span style="color:white;font-weight:500">Lisibilité</span><br><span style="color:#94A3B8">Chaque CTE fait une seule chose. On sait exactement ce qu'elle calcule.</span></p>
+          </div>
+          <div class="card" style="margin-bottom:0.6rem;padding:0.8rem">
+            <p class="text-sm"><span style="color:white;font-weight:500">Réutilisabilité</span><br><span style="color:#94A3B8">On peut la joindre plusieurs fois.</span></p>
+          </div>
+          <div class="card" style="padding:0.8rem">
+            <p class="text-sm"><span style="color:white;font-weight:500">Débogage</span><br><span style="color:#94A3B8">On peut tester chaque CTE séparément.</span></p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SLIDE 6 — Churn & Segmentation -->
+    <div class="slide" id="s6">
+      <div class="label">Churn & Segmentation</div>
+      <h2>Comment on définit "churné" ?</h2>
+      <div class="grid-2" style="align-items:start;gap:2rem">
+        <div>
+          <p style="margin-bottom:1rem;font-size:0.88rem;color:#94A3B8">Le seuil n'est pas arbitraire. Il a été calibré par analyse des taux réels sur le dataset.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Seuil testé</th>
+                <th>Taux de churn</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">90 jours</td>
+                <td><span class="text-red num">90%</span></td>
+                <td class="text-muted text-sm">✗ tout le monde churne</td>
+              </tr>
+              <tr>
+                <td class="num">180 jours</td>
+                <td><span class="text-yellow num">71%</span></td>
+                <td class="text-muted text-sm">✗ trop élevé</td>
+              </tr>
+              <tr>
+                <td class="num">270 jours</td>
+                <td><span class="num">49%</span></td>
+                <td class="text-muted text-sm"></td>
+              </tr>
+              <tr style="background:rgba(37,99,235,0.08)">
+                <td class="num text-blue">365 jours ✓</td>
+                <td><span class="text-green num">29%</span></td>
+                <td class="text-sm" style="color:#6EE7B7">retenu</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="card card-yellow mt-2" style="padding:0.9rem">
+            <p class="text-sm"><span class="text-yellow" style="font-weight:500">Limite connue :</span> ~97% des clients n'ont commandé qu'une seule fois. Distinction churné / client unique difficile.</p>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--blue);margin-bottom:0.75rem">4 segments clients</div>
+          <div class="seg" style="background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.2)">
+            <div class="seg-dot" style="background:#2563EB"></div>
+            <div>
+              <div class="seg-name">Nouveau</div>
+              <div class="seg-desc">1 commande · inactif &lt; 180j</div>
+            </div>
+          </div>
+          <div class="seg" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2)">
+            <div class="seg-dot" style="background:#10B981"></div>
+            <div>
+              <div class="seg-name">Actif</div>
+              <div class="seg-desc">inactif &lt; 180j</div>
+            </div>
+          </div>
+          <div class="seg" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2)">
+            <div class="seg-dot" style="background:#F59E0B"></div>
+            <div>
+              <div class="seg-name" style="color:#FCD34D">À risque ← cibler en priorité</div>
+              <div class="seg-desc">inactif 180 à 365j</div>
+            </div>
+          </div>
+          <div class="seg" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2)">
+            <div class="seg-dot" style="background:#EF4444"></div>
+            <div>
+              <div class="seg-name" style="color:#FCA5A5">Churné</div>
+              <div class="seg-desc">inactif &gt; 365j · est_churne = 1</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7 — Dashboard -->
+    <div class="slide" id="s7">
+      <div class="label">Démonstration</div>
+      <h2>Dashboard Streamlit</h2>
+      <div class="grid-2" style="align-items:start;gap:2rem">
+        <div>
+          <p style="margin-bottom:1.25rem;color:#CBD5E1">
+            Toutes les données viennent directement de la vue
+            <code style="font-family:'DM Mono',monospace;font-size:12px;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px">v_customer_features</code>.
+            Pas de calcul dans le dashboard, tout est produit par le pipeline SQL.
+          </p>
+          <ul class="checklist">
+            <li>Taux de churn réel à <span class="num text-blue">29%</span> et segment à risque à <span class="num text-yellow">41%</span> — issus de la vue SQL</li>
+            <li>Segmentation en 4 groupes avec leurs signaux comportementaux</li>
+            <li>Scatter RFM — récence vs valeur totale, ligne de seuil à 365 jours</li>
+            <li>Top 10 catégories par volume de ventes</li>
+            <li>Tableau des clients à risque triés par chiffre d'affaires</li>
+          </ul>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:1rem">
+          <div class="card" style="padding:1rem">
+            <div class="text-blue"
+              style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem">
+              Stack</div>
+            <p class="text-sm">Streamlit · Plotly · DuckDB · Python 3.12 · uv</p>
+          </div>
+          <div class="card" style="padding:1rem">
+            <div class="text-blue"
+              style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.5rem">
+              Lancement</div>
+            <code style="font-family:'DM Mono',monospace;font-size:12px;color:#6EE7B7">streamlit run dashboard/app.py</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8 — Conclusion -->
+    <div class="slide" id="s8">
+      <div class="label">Conclusion</div>
+      <h2>Bilan & perspectives</h2>
+      <div class="grid-2" style="align-items:start;gap:2rem">
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--blue);margin-bottom:0.75rem">
+            Ce qui a été produit</div>
+          <ul class="checklist">
+            <li>Pipeline SQL reproductible en 1 commande</li>
+            <li>18 features couvrant 6 dimensions RFM</li>
+            <li>Label churn calibré sur les données réelles</li>
+            <li>Vue <code style="font-family:'DM Mono',monospace;font-size:11px">v_customer_features</code> prête pour ML</li>
+            <li>Dashboard Streamlit interactif</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-400);margin-bottom:0.75rem">
+            Prochaine étape</div>
+          <div class="card card-blue" style="padding:1.1rem">
+            <p style="font-size:0.95rem;color:white;font-weight:500;margin-bottom:0.4rem">Entraîner un modèle de classification</p>
+            <p class="text-sm">La vue <code style="font-family:'DM Mono',monospace;font-size:11px">v_customer_features</code> est directement le fichier d'entrée du pipeline ML.</p>
+          </div>
+          <div class="card mt-2" style="padding:0.9rem">
+            <p class="text-sm">Affiner le seuil de churn avec l'équipe métier — 365 jours est un choix analytique, le métier peut avoir une définition différente.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 9 — Fin -->
+    <div class="slide" id="s9">
+
+      <div style="text-align:center;max-width:900px;margin:0 auto">
+        <div class="accent-line" style="margin:0 auto 2rem auto"></div>
+
+        <h1 style="margin-bottom:1.5rem">
+          Merci de votre<br>
+          <span class="text-blue">attention</span>
+        </h1>
+      </div>
+    </div>
+
+  </div><!-- end deck -->
+
+  <script>
+    let current = 0;
+    const slides = document.querySelectorAll('.slide');
+    const total = slides.length;
+    const progress = document.getElementById('progress');
+    const counter = document.getElementById('counter');
+
+    function goTo(n) {
+      if (n < 0 || n >= total) return;
+      slides[current].classList.remove('active');
+      slides[current].classList.add('exit');
+      setTimeout(() => slides[current].classList.remove('exit'), 400);
+      current = n;
+      slides[current].classList.add('active');
+      progress.style.width = ((current + 1) / total * 100) + '%';
+      counter.textContent = (current + 1) + ' / ' + total;
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') goTo(current + 1);
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+    });
+
+    document.getElementById('deck').addEventListener('click', e => {
+      if (e.clientX > window.innerWidth / 2) goTo(current + 1);
+      else goTo(current - 1);
+    });
+
+    // Custom cursor
+    const cursor = document.getElementById('cursor');
+    document.addEventListener('mousemove', e => {
+      cursor.style.left = e.clientX - 4 + 'px';
+      cursor.style.top = e.clientY - 4 + 'px';
+    });
+
+    // Init progress
+    progress.style.width = (1 / total * 100) + '%';
+  </script>
+</body>
+
+</html>

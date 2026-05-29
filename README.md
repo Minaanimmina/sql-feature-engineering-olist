@@ -175,10 +175,12 @@ Un client est considéré churné (`est_churne = 1`) s'il n'a pas commandé depu
 │   ├── explain_analyze.txt         # Résultats EXPLAIN ANALYZE
 │   └── pipeline_run.log            # Log de la dernière exécution
 ├── docs/
+│   ├── presentation_projet.html    # Diaporama de présentation du projet pour une soutenance
 │   ├── schema_bdd_analytique/
 │   │   ├── schema_bdd.mmd          # Schéma ERD (Mermaid)
 │   │   └── schema_bdd.png
 │   └── schema_bdd_source/
+│       └── schema_olist.png
 ├── scripts/run_pipeline.sh         # Script d'exécution du pipeline
 ├── pyproject.toml
 └── README.md
