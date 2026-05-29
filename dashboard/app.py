@@ -309,37 +309,95 @@ with st.sidebar:
     <hr class="sidebar-divider" style="margin-top:0"/>
     """, unsafe_allow_html=True)
 
-    st.space(size="small")
-    
-    # Churn SQL fixe
+    # Bloc churn fusionné (Option B)
     st.markdown(f"""
-    <div style="background:#FEF2F2;border-radius:12px;padding:1rem;
-                border:1px solid #FECACA;margin-bottom:0.75rem">
+    <div style="background:#FFFFFF;border-radius:12px;padding:1rem;
+                border:1px solid #E8ECF4;margin-bottom:0.75rem">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;
-                    letter-spacing:0.1em;color:#EF4444;margin-bottom:0.5rem">
-            Churn SQL (365 jours)
+                    letter-spacing:0.1em;color:#9CA3AF;margin-bottom:0.75rem">
+            Métriques churn · seuil 365 j
         </div>
-        <div style="font-size:32px;font-weight:700;color:#B91C1C;
-                    font-family:'DM Mono',monospace;line-height:1">{pct_churne_reel:.1f}%</div>
-        <div style="font-size:12px;color:#9CA3AF;margin:2px 0 0">{int(nb_churne_reel):,} clients · définition fixe</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Segment à risque fixe
-    st.markdown(f"""
-    <div style="background:#FFFBEB;border-radius:12px;padding:1rem;
-                border:1px solid #FDE68A;margin-bottom:0.75rem">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;
-                    letter-spacing:0.1em;color:#F59E0B;margin-bottom:0.5rem">
-            Segment à risque (180–365 j)
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+            <div style="background:#FEF2F2;border-radius:10px;padding:0.75rem;
+                        border:1px solid #FECACA;text-align:center">
+                <div style="font-size:9px;font-weight:600;text-transform:uppercase;
+                            letter-spacing:0.08em;color:#EF4444;margin-bottom:0.3rem">Churné</div>
+                <div style="font-size:22px;font-weight:700;color:#B91C1C;
+                            font-family:'DM Mono',monospace;line-height:1">{pct_churne_reel:.1f}%</div>
+                <div style="font-size:10px;color:#9CA3AF;margin-top:3px">{int(nb_churne_reel):,} clients</div>
+            </div>
+            <div style="background:#FFFBEB;border-radius:10px;padding:0.75rem;
+                        border:1px solid #FDE68A;text-align:center">
+                <div style="font-size:9px;font-weight:600;text-transform:uppercase;
+                            letter-spacing:0.08em;color:#F59E0B;margin-bottom:0.3rem">À risque</div>
+                <div style="font-size:22px;font-weight:700;color:#B45309;
+                            font-family:'DM Mono',monospace;line-height:1">{pct_a_risque_sql:.1f}%</div>
+                <div style="font-size:10px;color:#9CA3AF;margin-top:3px">{nb_a_risque_sql:,} clients</div>
+            </div>
         </div>
-        <div style="font-size:32px;font-weight:700;color:#B45309;
-                    font-family:'DM Mono',monospace;line-height:1">{pct_a_risque_sql:.1f}%</div>
-        <div style="font-size:12px;color:#9CA3AF;margin:2px 0 0">{nb_a_risque_sql:,} clients · définition fixe</div>
+        <div style="height:6px;background:#F0F2F8;border-radius:99px;overflow:hidden">
+            <div style="display:flex;height:100%">
+                <div style="width:{pct_a_risque_sql:.1f}%;background:#F59E0B;border-radius:99px 0 0 99px"></div>
+                <div style="width:{pct_churne_reel:.1f}%;background:#EF4444;border-radius:0 99px 99px 0"></div>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:9px;color:#F59E0B;font-weight:500">à risque</span>
+            <span style="font-size:9px;color:#EF4444;font-weight:500">churné</span>
+        </div>
     </div>
     <hr class="sidebar-divider"/>
     """, unsafe_allow_html=True)
-    
+
+    # Légende des 4 segments (Option C)
+    st.markdown("""
+    <div style="margin-bottom:0.75rem">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;
+                    letter-spacing:0.1em;color:#9CA3AF;margin-bottom:0.6rem">
+            Segmentation client
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        background:#EFF6FF;border-radius:8px;padding:6px 10px;
+                        border:1px solid #BFDBFE">
+                <div style="display:flex;align-items:center;gap:7px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#2563EB;flex-shrink:0"></div>
+                    <span style="font-size:11px;font-weight:600;color:#1D4ED8">Nouveau</span>
+                </div>
+                <span style="font-size:10px;color:#6B7280">1 commande · &lt; 180 j</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        background:#F0FDF4;border-radius:8px;padding:6px 10px;
+                        border:1px solid #BBF7D0">
+                <div style="display:flex;align-items:center;gap:7px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#10B981;flex-shrink:0"></div>
+                    <span style="font-size:11px;font-weight:600;color:#065F46">Actif</span>
+                </div>
+                <span style="font-size:10px;color:#6B7280">inactif &lt; 180 j</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        background:#FFFBEB;border-radius:8px;padding:6px 10px;
+                        border:1px solid #FDE68A">
+                <div style="display:flex;align-items:center;gap:7px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0"></div>
+                    <span style="font-size:11px;font-weight:600;color:#B45309">À risque</span>
+                </div>
+                <span style="font-size:10px;color:#6B7280">180 – 365 j</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;
+                        background:#FEF2F2;border-radius:8px;padding:6px 10px;
+                        border:1px solid #FECACA">
+                <div style="display:flex;align-items:center;gap:7px">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0"></div>
+                    <span style="font-size:11px;font-weight:600;color:#B91C1C">Churné</span>
+                </div>
+                <span style="font-size:10px;color:#6B7280">&gt; 365 j</span>
+            </div>
+        </div>
+    </div>
+    <hr class="sidebar-divider"/>
+    """, unsafe_allow_html=True)
+
     st.markdown(f"""
     <div style="background:#F4F6FB;border-radius:10px;padding:0.75rem 1rem;
                 border:1px solid #E8ECF4">
