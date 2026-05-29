@@ -60,14 +60,6 @@ html, body, [class*="css"], [class*="st-"] {
     fill: #374151 !important;
 }
 
-[data-testid="stSidebar"] .stSlider label,
-[data-testid="stSidebar"] label {
-    font-weight: 500 !important;
-    color: #6B7280 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-}
-
 .sidebar-divider {
     border: none;
     border-top: 1px solid #E8ECF4;
@@ -151,7 +143,6 @@ html, body, [class*="css"], [class*="st-"] {
     margin: 0;
 }
 
-/* Tighten Streamlit default spacing between stacked blocks/rows */
 [data-testid="stVerticalBlock"] {
     gap: 0.35rem !important;
 }
@@ -162,7 +153,6 @@ html, body, [class*="css"], [class*="st-"] {
     border-radius: 10px !important;
 }
 
-/* Remove extra paragraph margins inside markdown blocks */
 [data-testid="stMarkdownContainer"] > :first-child {
     margin-top: 0 !important;
 }
@@ -171,7 +161,6 @@ html, body, [class*="css"], [class*="st-"] {
     margin-bottom: 0 !important;
 }
 
-/* Hide empty markdown containers (created by closing-only markdown calls) */
 [data-testid="stElementContainer"]:has([data-testid="stMarkdownContainer"]:empty) {
     display: none !important;
 }
@@ -204,8 +193,6 @@ html, body, [class*="css"], [class*="st-"] {
     overflow: hidden;
     border: 1px solid #E8ECF4 !important;
 }
-
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -281,7 +268,11 @@ pct_bad_rev   = df["nb_mauvaises_reviews"].sum() / df["nb_reviews"].sum() * 100
 pct_churne_reel = df["est_churne"].mean() * 100
 nb_churne_reel  = df["est_churne"].sum()
 
-# Métriques par segment pour la row dédiée
+# Segment à risque issu de la vue SQL
+nb_a_risque_sql  = int((df["segment_client"] == "a_risque").sum())
+pct_a_risque_sql = nb_a_risque_sql / len(df) * 100
+
+# Métriques par segment
 SEGMENT_ORDER  = ["nouveau", "actif", "a_risque", "churne"]
 SEGMENT_LABELS = {"nouveau": "Nouveau", "actif": "Actif", "a_risque": "À risque", "churne": "Churné"}
 SEGMENT_COLORS = {"nouveau": "#2563EB", "actif": "#10B981", "a_risque": "#F59E0B", "churne": "#EF4444"}
@@ -299,6 +290,9 @@ df_seg = (
     .reset_index()
 )
 
+# Tableau clients à risque : segment a_risque uniquement, source SQL
+df_a_risque = df[df["segment_client"] == "a_risque"].copy()
+
 # ============================================================
 # SIDEBAR
 # ============================================================
@@ -315,72 +309,12 @@ with st.sidebar:
     <hr class="sidebar-divider" style="margin-top:0"/>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style="font-size:14px;font-weight:600;text-transform:uppercase;
-                letter-spacing:0.1em;color:#9CA3AF;margin-bottom:0.6rem">
-        Filtres churn
-    </div>
-    """, unsafe_allow_html=True)
-
-    seuil_recence = st.slider("Seuil récence (jours)", 0, 700, 365)
-    SEUIL_SCORE   = 2  # Aligné sur la définition SQL : review_score <= 2
-
-    st.markdown(f"""
-    <div style="display:flex;flex-direction:column;gap:6px;margin-top:0.75rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;
-                    background:#EFF6FF;border-radius:8px;padding:7px 10px;
-                    border:1px solid #BFDBFE">
-            <span style="font-size:11px;color:#1D4ED8;font-weight:500">Inactivité min.</span>
-            <span style="font-size:12px;font-weight:700;color:#1D4ED8;
-                         font-family:'DM Mono',monospace">{seuil_recence}j</span>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;
-                    background:#FEF9C3;border-radius:8px;padding:7px 10px;
-                    border:1px solid #FDE68A">
-            <span style="font-size:11px;color:#A16207;font-weight:500">Score ≤ 2</span>
-            <span style="font-size:12px;font-weight:700;color:#A16207;
-                         font-family:'DM Mono',monospace">fixe · définition SQL</span>
-        </div>
-    </div>
-    <hr class="sidebar-divider"/>
-    """, unsafe_allow_html=True)
-
-    df_risk = df[
-        (df["jours_depuis_derniere_commande"] > seuil_recence) &
-        (df["score_moyen_reviews"] <= SEUIL_SCORE)
-    ]
-    pct_risk      = len(df_risk) / len(df) * 100
-    badge_color   = "#FEE2E2" if pct_risk > 15 else "#FEF9C3"
-    badge_text    = "#B91C1C" if pct_risk > 15 else "#A16207"
-    niveau_risque = "Risque élevé" if pct_risk > 15 else "Risque modéré"
-
-    st.markdown(f"""
-    <div style="background:#FFFFFF;border-radius:12px;padding:1rem;
-                border:1px solid #E8ECF4;margin-bottom:0.5rem">
-        <div style="font-size:10px;font-weight:600;text-transform:uppercase;
-                    letter-spacing:0.1em;color:#9CA3AF;margin-bottom:0.5rem">
-            Clients à risque (filtres)
-        </div>
-        <div style="font-size:32px;font-weight:700;color:#0F1729;
-                    font-family:'DM Mono',monospace;line-height:1">{len(df_risk):,}</div>
-        <div style="font-size:12px;color:#9CA3AF;margin:2px 0 0.6rem 0">clients identifiés</div>
-        <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:22px;font-weight:700;color:#0F1729;
-                         font-family:'DM Mono',monospace">{pct_risk:.1f}%</span>
-            <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;
-                         background:{badge_color};color:{badge_text}">{niveau_risque}</span>
-        </div>
-        <div style="margin-top:8px;height:4px;background:#F0F2F8;border-radius:99px;overflow:hidden">
-            <div style="height:100%;width:{min(pct_risk, 100):.1f}%;
-                        background:{badge_text};border-radius:99px"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Churn SQL fixe dans la sidebar
+    st.space(size="small")
+    
+    # Churn SQL fixe
     st.markdown(f"""
     <div style="background:#FEF2F2;border-radius:12px;padding:1rem;
-                border:1px solid #FECACA;margin-bottom:0.5rem">
+                border:1px solid #FECACA;margin-bottom:0.75rem">
         <div style="font-size:10px;font-weight:600;text-transform:uppercase;
                     letter-spacing:0.1em;color:#EF4444;margin-bottom:0.5rem">
             Churn SQL (365 jours)
@@ -389,9 +323,23 @@ with st.sidebar:
                     font-family:'DM Mono',monospace;line-height:1">{pct_churne_reel:.1f}%</div>
         <div style="font-size:12px;color:#9CA3AF;margin:2px 0 0">{int(nb_churne_reel):,} clients · définition fixe</div>
     </div>
-    <hr class="sidebar-divider"/>
     """, unsafe_allow_html=True)
 
+    # Segment à risque fixe
+    st.markdown(f"""
+    <div style="background:#FFFBEB;border-radius:12px;padding:1rem;
+                border:1px solid #FDE68A;margin-bottom:0.75rem">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;
+                    letter-spacing:0.1em;color:#F59E0B;margin-bottom:0.5rem">
+            Segment à risque (180–365 j)
+        </div>
+        <div style="font-size:32px;font-weight:700;color:#B45309;
+                    font-family:'DM Mono',monospace;line-height:1">{pct_a_risque_sql:.1f}%</div>
+        <div style="font-size:12px;color:#9CA3AF;margin:2px 0 0">{nb_a_risque_sql:,} clients · définition fixe</div>
+    </div>
+    <hr class="sidebar-divider"/>
+    """, unsafe_allow_html=True)
+    
     st.markdown(f"""
     <div style="background:#F4F6FB;border-radius:10px;padding:0.75rem 1rem;
                 border:1px solid #E8ECF4">
@@ -480,17 +428,14 @@ with c3:
 with c4:
     st.markdown(f"""
     <div class="kpi-card">
-        <div class="kpi-label">Clients à risque (filtres)</div>
-        <div class="kpi-value">{pct_risk:.1f}%</div>
-        <span class="kpi-badge {'negative' if pct_risk > 15 else 'warning'}">
-            récence &gt; {seuil_recence}j · score ≤ 2</span>
-        <div class="kpi-sub">{len(df_risk):,} clients identifiés</div>
+        <div class="kpi-label">Segment à risque (SQL)</div>
+        <div class="kpi-value">{pct_a_risque_sql:.1f}%</div>
+        <span class="kpi-badge warning">inactif 180–365 j</span>
+        <div class="kpi-sub">{nb_a_risque_sql:,} clients · à cibler</div>
     </div>
     """, unsafe_allow_html=True)
 
 with c5:
-    nb_a_risque_sql = int((df["segment_client"] == "a_risque").sum())
-    pct_a_risque_sql = nb_a_risque_sql / len(df) * 100
     st.markdown(f"""
     <div class="kpi-card danger">
         <div style="font-size:11px;font-weight:600;color:#EF4444;
@@ -718,8 +663,8 @@ with col_scatter:
                     "segment_client": True}
     )
     fig_rfm.add_vline(
-        x=seuil_recence, line_dash="dash", line_color="#EF4444", line_width=1.5,
-        annotation_text=f"  seuil {seuil_recence}j",
+        x=365, line_dash="dash", line_color="#EF4444", line_width=1.5,
+        annotation_text="  seuil churn 365j",
         annotation_font_color="#EF4444", annotation_font_size=11
     )
     fig_rfm.update_layout(
@@ -769,7 +714,7 @@ with col_cat:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================
-# ROW 5 — Stats + Tableau churn (avec segment_client)
+# ROW 5 — Stats + Tableau clients à risque (segment a_risque)
 # ============================================================
 
 col_stats, col_table = st.columns([1, 2])
@@ -804,35 +749,20 @@ with col_stats:
         """, unsafe_allow_html=True)
 
 with col_table:
-    st.markdown(f"""
+    st.markdown("""
     <div class="chart-card">
     <div class="section-header">
         <p class="section-title">Clients à risque de churn</p>
-        <p class="section-sub">Récence &gt; {seuil_recence}j · Score ≤ 2 · Triés par valeur totale</p>
+        <p class="section-sub">Segment à risque · inactif 180–365 j · triés par valeur totale</p>
     </div>
     """, unsafe_allow_html=True)
 
-    def risk_level(row):
-        if row["jours_depuis_derniere_commande"] > 365 and row["score_moyen_reviews"] <= 2:
-            return "🔴 Élevé"
-        elif row["jours_depuis_derniere_commande"] > 270 or row["score_moyen_reviews"] <= 2:
-            return "🟡 Moyen"
-        return "🟢 Faible"
-
-    df_risk2           = df_risk.copy()
-    df_risk2["risque"] = df_risk2.apply(risk_level, axis=1)
-
-    # Libellé lisible pour segment_client
-    df_risk2["segment_label"] = df_risk2["segment_client"].map(SEGMENT_LABELS)
-
-    df_display = df_risk2[[
-        "customer_unique_id", "risque", "segment_label", "nb_commandes",
+    df_display = df_a_risque[[
+        "customer_unique_id", "nb_commandes",
         "jours_depuis_derniere_commande", "valeur_totale",
         "score_moyen_reviews", "pct_mauvaises_reviews"
     ]].sort_values("valeur_totale", ascending=False).head(15).rename(columns={
         "customer_unique_id":               "Client ID",
-        "risque":                           "Risque",
-        "segment_label":                    "Segment",
         "nb_commandes":                     "Commandes",
         "jours_depuis_derniere_commande":   "Inactivité (j)",
         "valeur_totale":                    "CA Total (R$)",
@@ -846,4 +776,4 @@ with col_table:
     df_display["% neg."]        = df_display["% neg."].round(1)
 
     st.dataframe(df_display, use_container_width=True, height=320, hide_index=True)
-    st.caption(f"⚠️ {len(df_risk):,} clients à risque sur {len(df):,} ({pct_risk:.1f}%)")
+    st.caption(f"⚠️ {nb_a_risque_sql:,} clients à risque sur {len(df):,} ({pct_a_risque_sql:.1f}%)")

@@ -24,7 +24,7 @@ ne partent définitivement, afin de déclencher des actions de rétention ciblé
 ## Architecture
 
 ```
-CSV Olist (9 fichiers)
+CSV Olist (8 fichiers)
         │
         ▼
   DuckDB (olist.duckdb)
